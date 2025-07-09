@@ -1,5 +1,5 @@
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
+import react from "@vitejs/plugin-react-swc";
 import { tempo } from "tempo-devtools/dist/vite";
 import { VitePWA } from "vite-plugin-pwa";
 import { resolve } from "path";
@@ -12,24 +12,27 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       devOptions: {
-        enabled: true,
+        enabled: false,
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2,mp3,json}"],
-        maximumFileSizeToCacheInBytes: 10000000, // 10MB
+        globPatterns: [
+          "**/*.{js,css,html,ico,png,svg,woff2,mp3,json,webmanifest}",
+        ],
+        maximumFileSizeToCacheInBytes: 15000000,
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
-        offlineGoogleAnalytics: true,
+        navigateFallback: "/index.html",
+        navigateFallbackDenylist: [/^\/_/, /\/[^/?]+\.[^/]+$/],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/api\.dicebear\.com\/.*/i,
             handler: "CacheFirst",
             options: {
-              cacheName: "dicebear-cache",
+              cacheName: "dicebear-avatars",
               expiration: {
-                maxEntries: 200,
-                maxAgeSeconds: 60 * 60 * 24 * 90, // 90 days
+                maxEntries: 300,
+                maxAgeSeconds: 60 * 60 * 24 * 180, // 6 months
               },
               cacheKeyWillBeUsed: async ({ request }) => {
                 return `${request.url}?v=1`;
@@ -40,51 +43,50 @@ export default defineConfig({
             urlPattern: /^https:\/\/images\.unsplash\.com\/.*/i,
             handler: "CacheFirst",
             options: {
-              cacheName: "unsplash-cache",
+              cacheName: "unsplash-images",
               expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 90, // 90 days
+                maxEntries: 150,
+                maxAgeSeconds: 60 * 60 * 24 * 90, // 3 months
               },
             },
           },
           {
-            urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
+            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/,
             handler: "CacheFirst",
             options: {
-              cacheName: "google-fonts-cache",
+              cacheName: "local-images",
               expiration: {
-                maxEntries: 10,
+                maxEntries: 200,
                 maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
               },
             },
           },
           {
-            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/,
-            handler: "CacheFirst",
+            urlPattern: /\.(?:js|css|woff2|mp3)$/,
+            handler: "StaleWhileRevalidate",
             options: {
-              cacheName: "images-cache",
+              cacheName: "static-assets",
               expiration: {
                 maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+                maxAgeSeconds: 60 * 60 * 24 * 30, // 1 month
               },
             },
           },
           {
-            urlPattern: /\.(?:js|css)$/,
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: "StaleWhileRevalidate",
             options: {
-              cacheName: "static-resources",
+              cacheName: "google-fonts-stylesheets",
             },
           },
           {
-            urlPattern: /^https:\/\/api\./,
-            handler: "NetworkFirst",
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+            handler: "CacheFirst",
             options: {
-              cacheName: "api-cache",
-              networkTimeoutSeconds: 3,
+              cacheName: "google-fonts-webfonts",
               expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 5, // 5 minutes
+                maxEntries: 30,
+                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
               },
             },
           },
@@ -95,36 +97,10 @@ export default defineConfig({
         "vite.svg",
         "success-sound.mp3",
         "offline.html",
+        "robots.txt",
+        "manifest.webmanifest",
       ],
-      manifest: {
-        name: "Yacin Gym - نادي ياسين الرياضي",
-        short_name: "YacinGym",
-        description:
-          "تطبيق إدارة نادي ياسين الرياضي - إدارة الأعضاء والمدفوعات والحضور",
-        theme_color: "#1E293B",
-        background_color: "#0F172A",
-        display: "standalone",
-        orientation: "portrait",
-        scope: "/",
-        start_url: "/",
-        lang: "ar",
-        dir: "rtl",
-        categories: ["fitness", "sports", "business"],
-        icons: [
-          {
-            src: "yacin-gym-logo.png",
-            sizes: "192x192",
-            type: "image/png",
-            purpose: "any maskable",
-          },
-          {
-            src: "yacin-gym-logo.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "any maskable",
-          },
-        ],
-      },
+      manifest: false, // Use external manifest file
     }),
   ],
   resolve: {
@@ -149,17 +125,29 @@ export default defineConfig({
           utils: ["localforage", "date-fns", "clsx", "tailwind-merge"],
           icons: ["lucide-react"],
         },
+        chunkFileNames: "assets/[name]-[hash].js",
+        entryFileNames: "assets/[name]-[hash].js",
+        assetFileNames: "assets/[name]-[hash].[ext]",
       },
     },
     sourcemap: false,
     minify: "terser",
     target: "es2020",
     cssCodeSplit: true,
-    assetsInlineLimit: 4096,
+    assetsInlineLimit: 8192, // Increased for better performance
+    reportCompressedSize: false, // Faster builds
     terserOptions: {
       compress: {
         drop_console: true,
         drop_debugger: true,
+        pure_funcs: ["console.log", "console.info"],
+        passes: 2,
+      },
+      mangle: {
+        safari10: true,
+      },
+      format: {
+        comments: false,
       },
     },
   },
