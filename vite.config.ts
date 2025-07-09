@@ -7,10 +7,7 @@ import { resolve } from "path";
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    react({
-      // تحسين React للسرعة
-      plugins: [["@swc/plugin-styled-components", {}]],
-    }),
+    react(),
     tempo(),
     VitePWA({
       registerType: "autoUpdate",
