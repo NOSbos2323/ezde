@@ -1,7 +1,7 @@
 # Netlify configuration for Yacin Gym App
 [build]
   publish = "dist"
-  command = "npm run build-no-errors"
+  command = "npm run build"
   ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ':!README.md'"
 
 [build.environment]
@@ -9,6 +9,7 @@
   NPM_VERSION = "10"
   VITE_TEMPO = "false"
   NODE_OPTIONS = "--max-old-space-size=4096"
+  CI = "true"
 
 # Headers for performance and security
 [[headers]]
@@ -103,21 +104,9 @@
   to = "/offline.html"
   status = 200
 
-# Build optimization
+# Build optimization - Let Vite handle optimization
 [build.processing]
-  skip_processing = false
-
-[build.processing.css]
-  bundle = true
-  minify = true
-
-[build.processing.js]
-  bundle = true
-  minify = true
-
-[build.processing.html]
-  pretty_urls = true
-  minify = true
+  skip_processing = true
 
 # Dev settings
 [dev]
